@@ -1,82 +1,86 @@
-import cv2
-import numpy
 import numpy as np
+import cv2
 import os
 
-COLORS = []
+# key: avg_color as tuple
+# value: loaded image (np.array)
 COLORS_DICT = {}
 
 
-def init(img_dir, img_width, img_height):
-    files = os.listdir(img_dir)
+def load_all_images_from_dir(directory, img_width, img_height):
+    files = os.listdir(directory)
+    # loading all images
     for file in files:
-        try:
-            filepath = img_dir + '/' + file
-            avg = get_avg_color(filepath)
-            COLORS.append(avg)
-            COLORS_DICT[tuple(avg)] = resize_img(cv2.imread(filepath, cv2.COLOR_BGR2RGB), img_width, img_height)
-        except Exception:
-            print(f'Error file: {file}')
-            pass
-        # COLORS_DICT[tuple(avg)] = file
+        filepath = directory + '/' + file
+        if os.path.isfile(filepath):
+            try:
+                # load image and store it into COLORS_DICT
+                img = cv2.imread(filepath, cv2.COLOR_BGR2RGB)
+                avg_color = get_avg_color(img)
+                COLORS_DICT[avg_color] = resize_img(img, img_width, img_height)
+            except np.AxisError:
+                print(f'Could not load: {file}')
+        else:
+            print(f'{filepath} is not a file!')
 
 
 def closest_img(color):
-    r, g, b = color
-    # color = b, g, r
-    colors = np.array(COLORS)
+    available_colors = list(COLORS_DICT.keys())  # all keys of the dict in a list
+    colors = np.array(available_colors)
     color = np.array(color)
     distances = np.sqrt(np.sum((colors - color) ** 2, axis=1))
     index_of_smallest = np.where(distances == np.amin(distances))
-    smallest_distance = colors[index_of_smallest]
-    return COLORS_DICT[list(map(tuple, smallest_distance))[0]]
+    best_fitting_color = tuple(colors[index_of_smallest][0])
+    return COLORS_DICT[best_fitting_color]
 
 
-def get_avg_color(file):
-    img = cv2.imread(file)
-    avg_color_per_row = numpy.average(img, axis=0)
-    avg_color = numpy.average(avg_color_per_row, axis=0)
-    return list(map(lambda c: int(c), avg_color))
+def get_avg_color(img):
+    avg_color_per_row = np.average(img, axis=0)
+    avg_color = np.average(avg_color_per_row, axis=0)
+    return tuple(map(lambda c: int(c), avg_color))
 
 
 def resize_img(img, new_width, new_height):
     return cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
 
-def create(file, all_img_width, all_img_height, new_img_width_count, new_img_height_count):
-    input_img = cv2.imread(file, cv2.COLOR_BGR2RGB)
-    input_img = resize_img(input_img, 200, 200)
+def create_big_image(input_img, img_pixels_width, img_pixels_height, new_img_width, new_img_height):
+    # scale input image to output size
+    input_img = resize_img(input_img, new_img_width, new_img_height)
 
-    # in_height = input_img.shape[0]
-    # in_width = input_img.shape[1]
+    # create blank image
+    new_img = np.zeros((img_pixels_height * new_img_height, img_pixels_width * new_img_width, 3), np.uint8)
 
-    input_img = resize_img(input_img, new_img_width_count, new_img_height_count)
-    new_img = np.zeros((all_img_height * new_img_height_count, all_img_width * new_img_width_count, 3), np.uint8)
-
-    # loop through ori img
-    for y in range(0, new_img_height_count):
-        for x in range(0, new_img_width_count):
-            img = closest_img(input_img[y, x])
-            new_img[y * all_img_height: y * all_img_height + all_img_height,
-            x * all_img_width:x * all_img_width + all_img_width] = img
+    # loop through original img
+    for y in range(0, new_img_height):
+        for x in range(0, new_img_width):
+            img = closest_img(input_img[y, x])  # get the best image for that pixel
+            # insert the image at the right spot
+            new_img[y * img_pixels_height: y * img_pixels_height + img_pixels_height,
+            x * img_pixels_width: x * img_pixels_width + img_pixels_width] = img
 
     return new_img
 
 
 def main():
-    # input_file = 'butterfly_gae.jpg'
-    # input_file = 'erasmus.jpg'
-    input_file = 'dg.jpg'
-    all_img_width = 200
-    all_img_height = 200
-    new_img_width_count = 150
-    new_img_height_count = 150
+    folder_with_images = 'resource_images'
+    input_file_path = 'rainbow_butterfly.jpg'
+    output_file = 'new.png'
+    img_pixels_width = 50  # width of the small images
+    img_pixels_height = 50  # height of the small images
+    new_img_width = 200  # width of the output file in small images
+    new_img_height = 200  # height of the output file in small images
 
     print('Loading Images ...')
-    init("all_res", all_img_width, all_img_height)
+    load_all_images_from_dir(folder_with_images, img_pixels_width, img_pixels_height)
+
     print('Creating big Image ...')
-    new_img = create(input_file, all_img_width, all_img_height, new_img_width_count, new_img_height_count)
-    cv2.imwrite("new.png", new_img)
+    input_img = cv2.imread(input_file_path, cv2.COLOR_BGR2RGB)
+    new_img = create_big_image(input_img, img_pixels_width, img_pixels_height, new_img_width, new_img_height)
+
+    print('Saving Image ...')
+    cv2.imwrite(output_file, new_img)
+
     print('Finished')
 
 
