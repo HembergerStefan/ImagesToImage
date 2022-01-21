@@ -10,16 +10,20 @@ COLORS_DICT = {}
 def init(img_dir, img_width, img_height):
     files = os.listdir(img_dir)
     for file in files:
-        filepath = img_dir + '/' + file
-        avg = get_avg_color(filepath)
-        COLORS.append(avg)
-        COLORS_DICT[tuple(avg)] = resize_img(cv2.imread(filepath, cv2.COLOR_BGR2RGB), img_width, img_height)
+        try:
+            filepath = img_dir + '/' + file
+            avg = get_avg_color(filepath)
+            COLORS.append(avg)
+            COLORS_DICT[tuple(avg)] = resize_img(cv2.imread(filepath, cv2.COLOR_BGR2RGB), img_width, img_height)
+        except Exception:
+            print(f'Error file: {file}')
+            pass
         # COLORS_DICT[tuple(avg)] = file
 
 
 def closest_img(color):
     r, g, b = color
-    color = b, g, r
+    # color = b, g, r
     colors = np.array(COLORS)
     color = np.array(color)
     distances = np.sqrt(np.sum((colors - color) ** 2, axis=1))
@@ -60,14 +64,16 @@ def create(file, all_img_width, all_img_height, new_img_width_count, new_img_hei
 
 
 def main():
-    input_file = 'butterfly_gae.jpg'
+    # input_file = 'butterfly_gae.jpg'
+    # input_file = 'erasmus.jpg'
+    input_file = 'dg.jpg'
     all_img_width = 200
     all_img_height = 200
-    new_img_width_count = 50
-    new_img_height_count = 50
+    new_img_width_count = 150
+    new_img_height_count = 150
 
     print('Loading Images ...')
-    init("res", all_img_width, all_img_height)
+    init("all_res", all_img_width, all_img_height)
     print('Creating big Image ...')
     new_img = create(input_file, all_img_width, all_img_height, new_img_width_count, new_img_height_count)
     cv2.imwrite("new.png", new_img)
